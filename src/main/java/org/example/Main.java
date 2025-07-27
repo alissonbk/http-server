@@ -1,8 +1,11 @@
 package org.example;
 
+import org.example.exceptions.NotFoundException;
+
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
-import java.net.SocketAddress;
+import java.util.Arrays;
 
 // curl -v -X GET http://localhost:8080
 // Request line
@@ -20,26 +23,35 @@ import java.net.SocketAddress;
 // Request body (empty)
 public class Main {
     static final int PORT = 8080;
-    static final String HTTP200 =  "HTTP/1.1 200 OK\r\n\r\n";
 
     public static void main(String[] args) {
         try (var serverSocket = new ServerSocket(PORT)) {
             serverSocket.setReuseAddress(true);
-            var clientSocket = serverSocket.accept();
-            System.out.println("new connection");
-            var content = clientSocket.getInputStream();
-            var req = readRequest(content.readAllBytes());
-            clientSocket.getOutputStream().write(HTTP200.getBytes());
-            clientSocket.getOutputStream().flush();
+            while (true) {
+                Thread.sleep(500);
+                var clientSocket = serverSocket.accept();
+                var httpRequest = readRequest(clientSocket.getInputStream());
+                var httpResponse = new HttpResponse(httpRequest);
+                var response = httpResponse.parseAll();
+                System.out.println("response: " + Arrays.toString(response));
+                clientSocket.getOutputStream().write(response);
+                clientSocket.getOutputStream().flush();
+                clientSocket.getOutputStream().close();
+                clientSocket.close();
+            }
+
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public static HttpRequest readRequest(byte[] buf) throws IOException {
+    public static HttpRequest readRequest(InputStream is) throws IOException {
+        byte[] buffer = new byte[is.available()];
+        var ignore = is.read(buffer);
         var req = new HttpRequest();
-        req.rawContent = new String(buf);
-        req.parseStartLine();
+        req.parseRequestLine(buffer);
         System.out.printf("method: %s\ntarget: %s\nprotocol: %s\n", req.getMethod(), req.getTarget(), req.getProtocol());
         return req;
     }

@@ -3,36 +3,31 @@ package org.example;
 
 import org.example.enums.HttpMethod;
 
-import java.net.http.HttpHeaders;
-import java.util.Arrays;
 
-public class HttpRequest extends Http implements HttpParser {
+public class HttpRequest extends Http {
     private HttpMethod method;
     private String target;
 
     public HttpRequest() {}
 
-    @Override
-    public void parseStartLine() {
-        var firstLine = super.rawContent.split("\r\n", 2)[0];
+    public void parseRequestLine(byte[] buf) {
+        var rawContent = new String(buf);
+        var firstLine = rawContent.split("\r\n", 2)[0];
         var spaceSeparated = firstLine.split(" ", 3);
         method = HttpMethod.valueOf(spaceSeparated[0]);
         target = spaceSeparated[1];
         super.protocol = spaceSeparated[2];
     }
 
-    @Override
-    public void parseHeaders() {
+    public void parseHeaders(byte[] buf) {
 
     }
 
-    @Override
-    public void parseBody() {
+    public void parseBody(byte[] buf) {
 
     }
 
-    @Override
-    public void parseAll() {
+    public void parseAll(byte[] buf) {
 
     }
 
