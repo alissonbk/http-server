@@ -24,7 +24,11 @@ public class HttpResponse extends Http {
     }
 
     public byte[] parseHeaders() {
-        return (parseContentType() + parseContentLength() + "\r\n").getBytes();
+        return (
+                parseContentType() +
+                parseContentLength() +
+                "\r\n"
+        ).getBytes();
     }
 
     /**
@@ -74,10 +78,15 @@ public class HttpResponse extends Http {
     // changes contentType
     private byte[] getBodyFromPath() throws NotFoundException {
         var path = request.getTarget();
-        if (path.startsWith("/echo/")) {
+        if (path.startsWith("/echo")) {
             this.contentType = HttpContentType.TEXT;
-            var str = path.split("/echo/", 2)[1];
+            var str = path.split("/echo", 2)[1];
             return str.getBytes();
+        }
+
+        if (path.startsWith("/user-agent")) {
+            this.contentType = HttpContentType.TEXT;
+            return this.request.getUserAgent().getBytes();
         }
 
         throw new NotFoundException("could not find this path");
@@ -85,7 +94,7 @@ public class HttpResponse extends Http {
 
     private String parseContentType() {
         if (contentType == null) { return ""; }
-        return "Content-Type: " + this.contentType.toString() + "\r\n";
+        return "Content-Type: " + this.contentType + "\r\n";
     }
 
     private String parseContentLength() {

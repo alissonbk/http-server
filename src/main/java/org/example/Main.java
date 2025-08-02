@@ -49,8 +49,8 @@ public class Main {
         byte[] buffer = new byte[is.available()];
         var ignore = is.read(buffer);
         var req = new HttpRequest();
-        req.parseRequestLine(buffer);
-        System.out.printf("method: %s\ntarget: %s\nprotocol: %s\n", req.getMethod(), req.getTarget(), req.getProtocol());
+        req.parseAll(buffer);
+        req.printRequest();
         return req;
     }
 }
