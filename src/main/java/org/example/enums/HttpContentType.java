@@ -1,5 +1,22 @@
 package org.example.enums;
 
 public enum HttpContentType {
-    TEXT, JSON, XML
+    TEXT {
+        @Override
+        public String toString() {
+            return "text/plain";
+        }
+    },
+    JSON {
+        @Override
+        public String toString() {
+            return "application/json";
+        }
+    },
+    XML {
+        @Override
+        public String toString() {
+            return "application/xml";
+        }
+    }
 }

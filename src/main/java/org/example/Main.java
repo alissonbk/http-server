@@ -28,12 +28,12 @@ public class Main {
         try (var serverSocket = new ServerSocket(PORT)) {
             serverSocket.setReuseAddress(true);
             while (true) {
-                Thread.sleep(500);
                 var clientSocket = serverSocket.accept();
                 var httpRequest = readRequest(clientSocket.getInputStream());
                 var httpResponse = new HttpResponse(httpRequest);
                 var response = httpResponse.parseAll();
                 System.out.println("response: " + Arrays.toString(response));
+                System.out.println("response: " + new String(response));
                 clientSocket.getOutputStream().write(response);
                 clientSocket.getOutputStream().flush();
                 clientSocket.getOutputStream().close();
@@ -42,8 +42,6 @@ public class Main {
 
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 

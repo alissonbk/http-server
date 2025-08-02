@@ -9,56 +9,64 @@ import java.util.Arrays;
 public class HttpResponse extends Http {
     private int statusCode;
     private HttpContentType contentType;
+    private int contentLength;
     private final HttpRequest request;
 
     public HttpResponse(HttpRequest request) {
         this.request = request;
     }
 
-    public ByteBuffer parseRequestLine(ByteBuffer buf) {
-        byte[] requestLine = ("HTTP/1.1 " + statusCode + " " + this.getStatusMessage() + "\r\n\r\n").getBytes();
-        return prependBytes(requestLine, buf.array());
+    public byte[] parseRequestLine() {
+        if (statusCode < 100 || statusCode > 599) {
+            statusCode = 500;
+        }
+        return ("HTTP/1.1 " + statusCode + " " + this.getStatusMessage() + "\r\n").getBytes();
     }
 
-    public void parseHeaders(ByteBuffer buf) {
-
+    public byte[] parseHeaders() {
+        return (parseContentType() + parseContentLength() + "\r\n").getBytes();
     }
 
     /**
      * can change some parameters (statusCode, contentType...) depending on the request.
      */
-    public ByteBuffer parseBody(ByteBuffer buf) {
+    public byte[] parseBody() {
         try {
-            var content = getBodyFromPath();
-            System.out.println("content: " + Arrays.toString(content));
-            // FIXME: this dont increase the buffer size dynamically
-            buf.put(content);
-            return buf;
+            final var body = getBodyFromPath();
+            statusCode = 200;
+            contentType = HttpContentType.TEXT;
+            contentLength = body.length;
+            return body;
         } catch (NotFoundException e) {
             statusCode = 404;
             System.out.println("not found");
         }
 
-        return buf;
+        return new byte[]{};
     }
 
     public byte[] parseAll() {
-        var byteBuffer = ByteBuffer.allocate(0);
-        System.out.println(Arrays.toString(byteBuffer.array()));
-        parseHeaders(byteBuffer);
-        System.out.println(Arrays.toString(byteBuffer.array()));
-        byteBuffer = parseBody(byteBuffer);
-        System.out.println(Arrays.toString(byteBuffer.array()));
-        // parse later as status code can change case the status code has changed
-        var finalBuffer = parseRequestLine(byteBuffer);
-        System.out.println("finalBuffer:" + Arrays.toString(finalBuffer.array()));
-        return finalBuffer.array();
+        var body = parseBody();
+        System.out.println(Arrays.toString(body));
+
+        var headers = parseHeaders();
+        System.out.println(Arrays.toString(headers));
+
+        var requestLine = parseRequestLine();
+        System.out.println(Arrays.toString(requestLine));
+
+        byte[] finalBuffer = new byte[requestLine.length + body.length + headers.length];
+        System.arraycopy(requestLine, 0, finalBuffer, 0, requestLine.length);
+        System.arraycopy(headers, 0, finalBuffer, requestLine.length, headers.length);
+        System.arraycopy(body, 0, finalBuffer, requestLine.length + headers.length , body.length);
+        return finalBuffer;
     }
 
     private String getStatusMessage()  {
         return switch (statusCode) {
             case 200 -> "OK";
             case 404 -> "Not Found";
+            case 500 -> "Internal Server Error";
             default -> "";
         };
     }
@@ -75,11 +83,12 @@ public class HttpResponse extends Http {
         throw new NotFoundException("could not find this path");
     }
 
-    private ByteBuffer prependBytes(byte[] prefix, byte[] original) {
-        ByteBuffer buffer = ByteBuffer.allocate(prefix.length + original.length);
-        buffer.put(prefix);
-        buffer.put(original);
-        buffer.flip();
-        return buffer;
+    private String parseContentType() {
+        if (contentType == null) { return ""; }
+        return "Content-Type: " + this.contentType.toString() + "\r\n";
+    }
+
+    private String parseContentLength() {
+        return "Content-Length: " + this.contentLength + "\r\n";
     }
 }

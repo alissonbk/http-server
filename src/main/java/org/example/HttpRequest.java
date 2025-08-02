@@ -2,6 +2,7 @@ package org.example;
 
 
 import org.example.enums.HttpMethod;
+import org.example.exceptions.FailedToParse;
 
 
 public class HttpRequest extends Http {
@@ -14,7 +15,12 @@ public class HttpRequest extends Http {
         var rawContent = new String(buf);
         var firstLine = rawContent.split("\r\n", 2)[0];
         var spaceSeparated = firstLine.split(" ", 3);
-        method = HttpMethod.valueOf(spaceSeparated[0]);
+        try {
+            method = HttpMethod.valueOf(spaceSeparated[0]);
+        } catch (IllegalArgumentException e) {
+            throw new FailedToParse("invalid request line, unkown http method: " + spaceSeparated[0]);
+        }
+
         target = spaceSeparated[1];
         super.protocol = spaceSeparated[2];
     }
