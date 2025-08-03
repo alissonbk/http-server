@@ -1,22 +1,23 @@
 package org.example;
 
+import org.example.enums.HttpConnection;
 import org.example.enums.HttpContentType;
 import org.example.exceptions.NotFoundException;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class HttpResponse extends Http {
     private int statusCode;
     private HttpContentType contentType;
     private int contentLength;
+    private HttpConnection connection;
     private final HttpRequest request;
 
     public HttpResponse(HttpRequest request) {
         this.request = request;
     }
 
-    public byte[] parseRequestLine() {
+    public byte[] parseResponseLine() {
         if (statusCode < 100 || statusCode > 599) {
             statusCode = 500;
         }
@@ -27,6 +28,7 @@ public class HttpResponse extends Http {
         return (
                 parseContentType() +
                 parseContentLength() +
+                parseConnection() +
                 "\r\n"
         ).getBytes();
     }
@@ -53,18 +55,26 @@ public class HttpResponse extends Http {
 
     public byte[] parseAll() {
         var body = parseBody();
-        System.out.println(Arrays.toString(body));
-
         var headers = parseHeaders();
-        System.out.println(Arrays.toString(headers));
+        var responseLine = parseResponseLine();
 
-        var requestLine = parseRequestLine();
-        System.out.println(Arrays.toString(requestLine));
+        byte[] finalBuffer = new byte[responseLine.length + body.length + headers.length];
+        System.arraycopy(responseLine, 0, finalBuffer, 0, responseLine.length);
+        System.arraycopy(headers, 0, finalBuffer, responseLine.length, headers.length);
+        System.arraycopy(body, 0, finalBuffer, responseLine.length + headers.length , body.length);
+        return finalBuffer;
+    }
 
-        byte[] finalBuffer = new byte[requestLine.length + body.length + headers.length];
-        System.arraycopy(requestLine, 0, finalBuffer, 0, requestLine.length);
-        System.arraycopy(headers, 0, finalBuffer, requestLine.length, headers.length);
-        System.arraycopy(body, 0, finalBuffer, requestLine.length + headers.length , body.length);
+    // Creates a response for request timeout
+    public byte[] buildRequestTimeout() {
+        this.connection = HttpConnection.CLOSE;
+        this.statusCode = 408;
+        var headers = parseHeaders();
+        var responseLine = parseResponseLine();
+
+        byte[] finalBuffer = new byte[responseLine.length + headers.length];
+        System.arraycopy(responseLine, 0, finalBuffer, 0, responseLine.length);
+        System.arraycopy(headers, 0, finalBuffer, responseLine.length, headers.length);
         return finalBuffer;
     }
 
@@ -72,6 +82,7 @@ public class HttpResponse extends Http {
         return switch (statusCode) {
             case 200 -> "OK";
             case 404 -> "Not Found";
+            case 408 -> "Request Timeout";
             case 500 -> "Internal Server Error";
             default -> "";
         };
@@ -105,5 +116,10 @@ public class HttpResponse extends Http {
 
     private String parseContentLength() {
         return "Content-Length: " + this.contentLength + "\r\n";
+    }
+
+    private String parseConnection() {
+        if (connection == null) { return ""; }
+        return "Connection: " + this.connection + "\r\n";
     }
 }

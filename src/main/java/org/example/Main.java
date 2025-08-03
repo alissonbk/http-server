@@ -1,5 +1,6 @@
 package org.example;
 
+import org.example.exceptions.ConnectionTimeout;
 import org.example.exceptions.NotFoundException;
 
 import java.io.IOException;
@@ -53,15 +54,29 @@ public class Main {
             clientSocket.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } catch (ConnectionTimeout e) {
+            try {
+                var response = new HttpResponse(null).buildRequestTimeout();
+                clientSocket.getOutputStream().write(response);
+                clientSocket.getOutputStream().flush();
+                clientSocket.getOutputStream().close();
+                clientSocket.close();
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
         }
 
     }
 
     private static void waitForConnectionContent(Socket s) throws IOException {
         var startTime = Date.from(Instant.now());
-        var inTimeoutRange = Date.from(Instant.now().minusSeconds(EMPTY_CONNECTION_TIMEOUT_SECONDS)).before(startTime);
-        while(s.getInputStream().available() <= 0 && inTimeoutRange) {
+        while(s.getInputStream().available() <= 0 && Date.from(Instant.now().minusSeconds(EMPTY_CONNECTION_TIMEOUT_SECONDS)).before(startTime)) {
             // wait for content or timeout
+        }
+        if (s.getInputStream().available() <= 0) {
+            throw new ConnectionTimeout(
+                "the client spent more than " + EMPTY_CONNECTION_TIMEOUT_SECONDS + " seconds without sending any content"
+            );
         }
     }
 
