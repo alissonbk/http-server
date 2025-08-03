@@ -37,9 +37,11 @@ public class HttpResponse extends Http {
     public byte[] parseBody() {
         try {
             final var body = getBodyFromPath();
-            statusCode = 200;
-            contentType = HttpContentType.TEXT;
-            contentLength = body.length;
+            if (body == null) {
+                return new byte[]{};
+            }
+
+            this.contentLength = body.length;
             return body;
         } catch (NotFoundException e) {
             statusCode = 404;
@@ -78,6 +80,10 @@ public class HttpResponse extends Http {
     // changes contentType
     private byte[] getBodyFromPath() throws NotFoundException {
         var path = request.getTarget();
+        if (path.equals("/") || path.isEmpty()) {
+            this.statusCode = 200;
+            return null;
+        }
         if (path.startsWith("/echo")) {
             this.contentType = HttpContentType.TEXT;
             var str = path.split("/echo", 2)[1];

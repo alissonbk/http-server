@@ -5,39 +5,33 @@ import org.example.exceptions.NotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
-// curl -v -X GET http://localhost:8080
-// Request line
-// GET                          // HTTP method
-// index.html                  // Request target
-// HTTP/1.1                     // HTTP version
-//        \r\n                         // CRLF that marks the end of the request line
 
-// Headers
-//Host: localhost:4221\r\n     // Header that specifies the server's host and port
-//User-Agent: curl/7.64.1\r\n  // Header that describes the client's user agent
-//Accept: */*\r\n              // Header that specifies which media types the client can accept
-//\r\n                         // CRLF that marks the end of the headers
-
-// Request body (empty)
 public class Main {
     static final int PORT = 8080;
+    // Timeout that the client has to send content after a tcp connection is created
+    static final int EMPTY_CONNECTION_TIMEOUT_SECONDS = 5;
 
     public static void main(String[] args) {
-        try (var serverSocket = new ServerSocket(PORT)) {
+        var cpus = Runtime.getRuntime().availableProcessors();
+        System.out.println("CPU cores available: " + cpus);
+        try (var serverSocket = new ServerSocket(PORT); var executor = Executors.newFixedThreadPool(cpus)) {
             serverSocket.setReuseAddress(true);
             while (true) {
                 var clientSocket = serverSocket.accept();
-                var httpRequest = readRequest(clientSocket.getInputStream());
-                var httpResponse = new HttpResponse(httpRequest);
-                var response = httpResponse.parseAll();
-                System.out.println("response: " + Arrays.toString(response));
-                System.out.println("response: " + new String(response));
-                clientSocket.getOutputStream().write(response);
-                clientSocket.getOutputStream().flush();
-                clientSocket.getOutputStream().close();
-                clientSocket.close();
+                System.out.printf("Accepted connection from %s, thread pool size: %d, active threads: %d\n",
+                        clientSocket.getInetAddress().getHostName(),
+                        ((ThreadPoolExecutor) executor).getPoolSize(),
+                        ((ThreadPoolExecutor) executor).getActiveCount());
+                executor.submit(() -> {
+                    handleNewConnection(clientSocket);
+                });
             }
 
         } catch (IOException e) {
@@ -45,10 +39,37 @@ public class Main {
         }
     }
 
-    public static HttpRequest readRequest(InputStream is) throws IOException {
+    private static void handleNewConnection(Socket clientSocket) {
+        try {
+            waitForConnectionContent(clientSocket);
+            var httpRequest = readRequest(clientSocket.getInputStream());
+            var httpResponse = new HttpResponse(httpRequest);
+            var response = httpResponse.parseAll();
+            System.out.println("response: " + Arrays.toString(response));
+            System.out.println("response: " + new String(response));
+            clientSocket.getOutputStream().write(response);
+            clientSocket.getOutputStream().flush();
+            clientSocket.getOutputStream().close();
+            clientSocket.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private static void waitForConnectionContent(Socket s) throws IOException {
+        var startTime = Date.from(Instant.now());
+        var inTimeoutRange = Date.from(Instant.now().minusSeconds(EMPTY_CONNECTION_TIMEOUT_SECONDS)).before(startTime);
+        while(s.getInputStream().available() <= 0 && inTimeoutRange) {
+            // wait for content or timeout
+        }
+    }
+
+    private static HttpRequest readRequest(InputStream is) throws IOException {
         byte[] buffer = new byte[is.available()];
         var ignore = is.read(buffer);
         var req = new HttpRequest();
+        System.out.println("request buffer: " + new String(buffer));
         req.parseAll(buffer);
         req.printRequest();
         return req;

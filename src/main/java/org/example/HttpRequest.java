@@ -19,7 +19,7 @@ public class HttpRequest extends Http {
     private void parseRequestLine(String requestLine) {
         var spaceSeparated = requestLine.split(" ", 3);
         try {
-            method = HttpMethod.valueOf(spaceSeparated[0]);
+            method = HttpMethod.valueOf(spaceSeparated[0].trim());
         } catch (IllegalArgumentException e) {
             throw new FailedToParse("invalid request line, unkown http method: " + spaceSeparated[0]);
         }
