@@ -4,7 +4,13 @@ import org.example.enums.HttpConnection;
 import org.example.enums.HttpContentType;
 import org.example.exceptions.NotFoundException;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
+
+import static org.example.Main.FILE_PATH_DIR;
 
 public class HttpResponse extends Http {
     private int statusCode;
@@ -104,6 +110,19 @@ public class HttpResponse extends Http {
         if (path.startsWith("/user-agent")) {
             this.contentType = HttpContentType.TEXT;
             return this.request.getUserAgent().getBytes();
+        }
+
+        if (path.startsWith("/files")) {
+            this.contentType = HttpContentType.FILE;
+            var str = path.split("/files", 2)[1];
+            try {
+                return Files.readAllBytes(Paths.get(FILE_PATH_DIR + "/" + str));
+            } catch (IOException e) {
+                System.out.println("failed to read file: " + e.getMessage());
+                this.contentType = null;
+                this.statusCode = 404;
+                return null;
+            }
         }
 
         throw new NotFoundException("could not find this path");

@@ -18,5 +18,11 @@ public enum HttpContentType {
         public String toString() {
             return "application/xml";
         }
+    },
+    FILE {
+        @Override
+        public String toString() {
+            return "application/octet-stream";
+        }
     }
 }

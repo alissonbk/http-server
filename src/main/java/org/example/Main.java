@@ -1,7 +1,6 @@
 package org.example;
 
 import org.example.exceptions.ConnectionTimeout;
-import org.example.exceptions.NotFoundException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,9 +17,12 @@ public class Main {
     static final int PORT = 8080;
     // Timeout that the client has to send content after a tcp connection is created
     static final int EMPTY_CONNECTION_TIMEOUT_SECONDS = 5;
+    static String FILE_PATH_DIR = "";
 
     public static void main(String[] args) {
+        readDirectoryPath(args);
         var cpus = Runtime.getRuntime().availableProcessors();
+        System.out.println("files path: " + FILE_PATH_DIR);
         System.out.println("CPU cores available: " + cpus);
         try (var serverSocket = new ServerSocket(PORT); var executor = Executors.newFixedThreadPool(cpus)) {
             serverSocket.setReuseAddress(true);
@@ -37,6 +39,16 @@ public class Main {
 
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        }
+    }
+
+    private static void readDirectoryPath(String[] args) {
+        System.out.println(Arrays.toString(args));
+        if (args.length > 1 && args[0].equals("--directory")) {
+            var path = args[1];
+            if (!path.isEmpty()) {
+                FILE_PATH_DIR = path;
+            }
         }
     }
 
