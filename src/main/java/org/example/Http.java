@@ -1,12 +1,10 @@
 package org.example;
 
-public class Http {
+import org.example.enums.HttpContentType;
+
+public abstract class Http {
     protected String protocol;
     protected String body;
-
-
-    public String getProtocol() {
-        return protocol;
-    }
-
+    protected HttpContentType contentType;
+    protected int contentLength;
 }

@@ -2,20 +2,19 @@ package org.example;
 
 import org.example.enums.HttpConnection;
 import org.example.enums.HttpContentType;
+import org.example.enums.HttpMethod;
+import org.example.exceptions.FailedToParseFile;
 import org.example.exceptions.NotFoundException;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 
 import static org.example.Main.FILE_PATH_DIR;
 
 public class HttpResponse extends Http {
     private int statusCode;
-    private HttpContentType contentType;
-    private int contentLength;
     private HttpConnection connection;
     private final HttpRequest request;
 
@@ -60,6 +59,7 @@ public class HttpResponse extends Http {
     }
 
     public byte[] parseAll() {
+        System.out.println("parse all");
         var body = parseBody();
         var headers = parseHeaders();
         var responseLine = parseResponseLine();
@@ -87,8 +87,18 @@ public class HttpResponse extends Http {
     private String getStatusMessage()  {
         return switch (statusCode) {
             case 200 -> "OK";
+            case 201 -> "CREATED";
+            case 202 -> "ACCEPTED";
+            case 204 -> "NO_CONTENT";
+            case 205 -> "MOVED_PERMANENTLY";
+            case 401 -> "UNAUTHORIZED";
+            case 403 -> "FORBIDDEN";
             case 404 -> "Not Found";
+            case 405 -> "Method Not Allowed";
             case 408 -> "Request Timeout";
+            case 409 -> "Conflict";
+            case 410 -> "Not Acceptable";
+            case 415 -> "Unsupported Media Type";
             case 500 -> "Internal Server Error";
             default -> "";
         };
@@ -113,14 +123,23 @@ public class HttpResponse extends Http {
         }
 
         if (path.startsWith("/files")) {
-            this.contentType = HttpContentType.FILE;
-            var str = path.split("/files", 2)[1];
-            try {
-                return Files.readAllBytes(Paths.get(FILE_PATH_DIR + "/" + str));
-            } catch (IOException e) {
-                System.out.println("failed to read file: " + e.getMessage());
-                this.contentType = null;
-                this.statusCode = 404;
+            if (request.getMethod().equals(HttpMethod.GET)) {
+                this.contentType = HttpContentType.FILE;
+                var str = path.split("/files", 2)[1];
+                try {
+                    return Files.readAllBytes(Paths.get(FILE_PATH_DIR + "/" + str));
+                } catch (IOException e) {
+                    System.out.println("failed to read file: " + e.getMessage());
+                    throw new NotFoundException("file not found");
+                }
+            }
+            if (request.getMethod().equals(HttpMethod.POST)) {
+                if (!contentType.equals(HttpContentType.FILE)) {
+                    this.statusCode = 415;
+                    return null;
+                }
+                saveFile(request.body.getBytes());
+                this.statusCode = 201;
                 return null;
             }
         }
@@ -140,5 +159,25 @@ public class HttpResponse extends Http {
     private String parseConnection() {
         if (connection == null) { return ""; }
         return "Connection: " + this.connection + "\r\n";
+    }
+
+    // Saves file to { FILE_PATH_DIR }
+    private void saveFile(byte[] buf) {
+        System.out.println("saving file to: " + request.getTarget());
+        if (buf.length != this.contentLength) {
+            throw new FailedToParseFile(
+                    String.format("the content length doesn't match with file length. " +
+                                    "body length: %d, contentLength: %d\n",
+                            buf.length, this.contentLength)
+            );
+        }
+        var fileName = request.getTarget().split("/files", 2)[1];
+        try {
+            Path file = Paths.get(FILE_PATH_DIR + "/" + fileName);
+            Files.write(file, buf);
+        } catch (IOException e) {
+            System.out.println("failed to write file: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
     }
 }

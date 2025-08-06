@@ -1,10 +1,12 @@
 package org.example;
 
 
+import org.example.enums.HttpContentType;
 import org.example.enums.HttpMethod;
 import org.example.exceptions.FailedToParse;
 
 import java.util.Arrays;
+
 
 
 public class HttpRequest extends Http {
@@ -14,8 +16,10 @@ public class HttpRequest extends Http {
     private String host;
     private String accept;
 
-    public HttpRequest() {}
+    public HttpRequest() {
+    }
 
+    // Will set method, target and protocol
     private void parseRequestLine(String requestLine) {
         var spaceSeparated = requestLine.split(" ", 3);
         try {
@@ -36,8 +40,13 @@ public class HttpRequest extends Http {
             }
             throw new FailedToParse("invalid request!");
         }
+        System.out.println(Arrays.toString(split));
+        System.out.println(split[split.length - 2]);
         for (var i = 1; i < split.length - 1; i++) {
-            var splitHeader = split[i].split(": ", 2);
+            var str = split[i];
+            if (str.trim().isEmpty()) { continue; }
+            var splitHeader = str.split(": ", 2);
+
             if (splitHeader[0].equals("User-Agent")) {
                 this.userAgent = splitHeader[1];
             }
@@ -47,6 +56,20 @@ public class HttpRequest extends Http {
             if (splitHeader[0].equals("Accept")) {
                 this.accept = splitHeader[1];
             }
+            if (splitHeader[0].equals("Content-Length")) {
+                System.out.println("A");
+                this.contentLength = Integer.parseInt(splitHeader[1]);
+                System.out.println("b");
+            }
+            if (splitHeader[0].equals("Content-Type")) {
+                try {
+                    System.out.println("here");
+                    this.contentType = HttpContentType.valueOf(splitHeader[1]);
+                } catch (IllegalArgumentException e) {
+                    throw new FailedToParse("invalid Content-Type: " + splitHeader[1]);
+                }
+
+            }
         }
     }
 
@@ -54,6 +77,7 @@ public class HttpRequest extends Http {
         super.body = body;
     }
 
+    // FIXME: should split the byte[] without transforming to string for better performance (specially if the body is a file...)
     public void parseAll(byte[] buf) {
         var rawContent = new String(buf);
         var split = rawContent.split("\r\n", -1);
@@ -77,4 +101,6 @@ public class HttpRequest extends Http {
     public void printRequest() {
         System.out.printf("method: %s\ntarget: %s\nuserAgent: %s\nhost: %s\naccept: %s\n", method, target, userAgent, host, accept);
     }
+
+
 }
