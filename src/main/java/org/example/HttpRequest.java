@@ -57,15 +57,13 @@ public class HttpRequest extends Http {
                 this.accept = splitHeader[1];
             }
             if (splitHeader[0].equals("Content-Length")) {
-                System.out.println("A");
                 this.contentLength = Integer.parseInt(splitHeader[1]);
-                System.out.println("b");
             }
             if (splitHeader[0].equals("Content-Type")) {
                 try {
-                    System.out.println("here");
-                    this.contentType = HttpContentType.valueOf(splitHeader[1]);
+                    this.contentType = super.contentTypeFromMimeType(splitHeader[1]);
                 } catch (IllegalArgumentException e) {
+                    System.out.println(e.getMessage());
                     throw new FailedToParse("invalid Content-Type: " + splitHeader[1]);
                 }
 
