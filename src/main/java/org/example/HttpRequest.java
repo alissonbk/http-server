@@ -40,8 +40,6 @@ public class HttpRequest extends Http {
             }
             throw new FailedToParse("invalid request!");
         }
-        System.out.println(Arrays.toString(split));
-        System.out.println(split[split.length - 2]);
         for (var i = 1; i < split.length - 1; i++) {
             var str = split[i];
             if (str.trim().isEmpty()) { continue; }
@@ -97,7 +95,7 @@ public class HttpRequest extends Http {
     }
 
     public void printRequest() {
-        System.out.printf("method: %s\ntarget: %s\nuserAgent: %s\nhost: %s\naccept: %s\n", method, target, userAgent, host, accept);
+        System.out.printf("printed request: \n\tmethod: %s\n\ttarget: %s\n\tuserAgent: %s\n\thost: %s\n\taccept: %s\n", method, target, userAgent, host, accept);
     }
 
 

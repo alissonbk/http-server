@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 import static org.example.Main.FILE_PATH_DIR;
 
@@ -59,7 +60,6 @@ public class HttpResponse extends Http {
     }
 
     public byte[] parseAll() {
-        System.out.println("parse all");
         var body = parseBody();
         var headers = parseHeaders();
         var responseLine = parseResponseLine();
@@ -134,13 +134,20 @@ public class HttpResponse extends Http {
                 }
             }
             if (request.getMethod().equals(HttpMethod.POST)) {
-                if (!contentType.equals(HttpContentType.FILE)) {
+                if (!request.contentType.equals(HttpContentType.FILE)) {
                     this.statusCode = 415;
                     return null;
                 }
-                saveFile(request.body.getBytes());
-                this.statusCode = 201;
-                return null;
+                try {
+                    saveFile(request.body.getBytes());
+                    this.statusCode = 201;
+                    return null;
+                } catch (Exception e) {
+                    System.out.println("failed to saveFile: " + e.getMessage());
+                    this.statusCode = 500;
+                    return null;
+                }
+
             }
         }
 
@@ -163,8 +170,7 @@ public class HttpResponse extends Http {
 
     // Saves file to { FILE_PATH_DIR }
     private void saveFile(byte[] buf) {
-        System.out.println("saving file to: " + request.getTarget());
-        if (buf.length != this.contentLength) {
+        if (buf.length != request.contentLength) {
             throw new FailedToParseFile(
                     String.format("the content length doesn't match with file length. " +
                                     "body length: %d, contentLength: %d\n",

@@ -43,7 +43,7 @@ public class Main {
     }
 
     private static void readDirectoryPath(String[] args) {
-        System.out.println(Arrays.toString(args));
+        System.out.println("args: " + Arrays.toString(args));
         if (args.length > 1 && args[0].equals("--directory")) {
             var path = args[1];
             if (!path.isEmpty()) {
@@ -58,8 +58,7 @@ public class Main {
             var httpRequest = readRequest(clientSocket.getInputStream());
             var httpResponse = new HttpResponse(httpRequest);
             var response = httpResponse.parseAll();
-            System.out.println("response: " + Arrays.toString(response));
-            System.out.println("response: " + new String(response));
+            System.out.println("response: \n" + new String(response));
             clientSocket.getOutputStream().write(response);
             clientSocket.getOutputStream().flush();
             clientSocket.getOutputStream().close();
@@ -96,7 +95,6 @@ public class Main {
         byte[] buffer = new byte[is.available()];
         var ignore = is.read(buffer);
         var req = new HttpRequest();
-        System.out.println("request buffer: " + new String(buffer));
         req.parseAll(buffer);
         req.printRequest();
         return req;
