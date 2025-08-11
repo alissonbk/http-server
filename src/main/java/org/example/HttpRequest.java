@@ -2,6 +2,7 @@ package org.example;
 
 
 import org.example.enums.HttpContentType;
+import org.example.enums.HttpEncoding;
 import org.example.enums.HttpMethod;
 import org.example.exceptions.FailedToParse;
 
@@ -15,6 +16,7 @@ public class HttpRequest extends Http {
     private String userAgent;
     private String host;
     private String accept;
+    private HttpEncoding acceptEncoding;
 
     public HttpRequest() {
     }
@@ -66,6 +68,15 @@ public class HttpRequest extends Http {
                 }
 
             }
+            if (splitHeader[0].equals("Accept-Encoding")) {
+                try {
+                    final var encodings = splitHeader[1].split(";");
+                    // FIXME: find a better way to define which encoding to use
+                    this.acceptEncoding = HttpEncoding.valueOf(encodings[0]);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("The request encoding is not supported: " + e.getMessage());
+                }
+            }
         }
     }
 
@@ -99,4 +110,7 @@ public class HttpRequest extends Http {
     }
 
 
+    public HttpEncoding getAcceptEncoding() {
+        return acceptEncoding;
+    }
 }

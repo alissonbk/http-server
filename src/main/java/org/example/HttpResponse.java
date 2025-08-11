@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.enums.HttpConnection;
 import org.example.enums.HttpContentType;
+import org.example.enums.HttpEncoding;
 import org.example.enums.HttpMethod;
 import org.example.exceptions.FailedToParseFile;
 import org.example.exceptions.NotFoundException;
@@ -18,6 +19,7 @@ public class HttpResponse extends Http {
     private int statusCode;
     private HttpConnection connection;
     private final HttpRequest request;
+    private HttpEncoding contentEncoding;
 
     public HttpResponse(HttpRequest request) {
         this.request = request;
@@ -25,6 +27,7 @@ public class HttpResponse extends Http {
 
     public byte[] parseResponseLine() {
         if (statusCode < 100 || statusCode > 599) {
+            System.out.println("Not handled HTTP status code: " + statusCode);
             statusCode = 500;
         }
         return ("HTTP/1.1 " + statusCode + " " + this.getStatusMessage() + "\r\n").getBytes();
@@ -35,6 +38,7 @@ public class HttpResponse extends Http {
                 parseContentType() +
                 parseContentLength() +
                 parseConnection() +
+                parseContentEncoding() +
                 "\r\n"
         ).getBytes();
     }
@@ -44,7 +48,7 @@ public class HttpResponse extends Http {
      */
     public byte[] parseBody() {
         try {
-            final var body = getBodyFromPath();
+            final var body = compressIfAccepted(getBodyFromPath());
             if (body == null) {
                 return new byte[]{};
             }
@@ -113,6 +117,7 @@ public class HttpResponse extends Http {
         }
         if (path.startsWith("/echo")) {
             this.contentType = HttpContentType.TEXT;
+            this.statusCode = 200;
             var str = path.split("/echo", 2)[1];
             return str.getBytes();
         }
@@ -168,6 +173,11 @@ public class HttpResponse extends Http {
         return "Connection: " + this.connection + "\r\n";
     }
 
+    private String parseContentEncoding() {
+        if (contentEncoding == null) { return ""; }
+        return "Content-Encoding: " + this.contentEncoding + "\r\n";
+    }
+
     // Saves file to { FILE_PATH_DIR }
     private void saveFile(byte[] buf) {
         if (buf.length != request.contentLength) {
@@ -185,5 +195,27 @@ public class HttpResponse extends Http {
             System.out.println("failed to write file: " + e.getMessage());
             throw new RuntimeException(e);
         }
+    }
+
+    private byte[] compressIfAccepted(byte[] body) {
+        if (request.getAcceptEncoding() == null || body == null) {
+            return body;
+        }
+
+        switch (request.getAcceptEncoding()) {
+            case gzip -> {
+                this.contentEncoding = HttpEncoding.gzip;
+                // TODO COMPRESS GZIP
+                return body;
+            }
+
+            case compression -> {
+                this.contentEncoding = HttpEncoding.compression;
+                // TODO COMPRESS
+                return body;
+            }
+        }
+
+        throw new RuntimeException("could not find the appropriated encoding");
     }
 }
