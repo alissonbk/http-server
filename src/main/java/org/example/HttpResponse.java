@@ -7,11 +7,15 @@ import org.example.enums.HttpMethod;
 import org.example.exceptions.FailedToParseFile;
 import org.example.exceptions.NotFoundException;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.zip.GZIPOutputStream;
 
 import static org.example.Main.FILE_PATH_DIR;
 
@@ -48,7 +52,7 @@ public class HttpResponse extends Http {
      */
     public byte[] parseBody() {
         try {
-            final var body = compressIfAccepted(getBodyFromPath());
+            final var body = compressIfSupported(getBodyFromPath());
             if (body == null) {
                 return new byte[]{};
             }
@@ -58,6 +62,9 @@ public class HttpResponse extends Http {
         } catch (NotFoundException e) {
             statusCode = 404;
             System.out.println("not found");
+        } catch (IOException e) {
+            System.out.println("IOException " + e);
+            throw new RuntimeException(e);
         }
 
         return new byte[]{};
@@ -118,8 +125,8 @@ public class HttpResponse extends Http {
         if (path.startsWith("/echo")) {
             this.contentType = HttpContentType.TEXT;
             this.statusCode = 200;
-            var str = path.split("/echo", 2)[1];
-            return str.getBytes();
+            var str = path.split("/echo/", 2)[1];
+            return str.trim().getBytes();
         }
 
         if (path.startsWith("/user-agent")) {
@@ -197,7 +204,7 @@ public class HttpResponse extends Http {
         }
     }
 
-    private byte[] compressIfAccepted(byte[] body) {
+    private byte[] compressIfSupported(byte[] body) throws IOException {
         if (request.getAcceptEncoding() == null || body == null) {
             return body;
         }
@@ -205,17 +212,38 @@ public class HttpResponse extends Http {
         switch (request.getAcceptEncoding()) {
             case gzip -> {
                 this.contentEncoding = HttpEncoding.gzip;
-                // TODO COMPRESS GZIP
-                return body;
+                return gzip(body);
             }
 
             case compression -> {
                 this.contentEncoding = HttpEncoding.compression;
-                // TODO COMPRESS
-                return body;
+                // TODO COMPRESS LZW
+                throw new RuntimeException("LZW compression not implemented yet");
+            }
+
+            case deflate -> {
+                this.contentEncoding = HttpEncoding.deflate;
+                // TODO COMPRESS with deflate
+                throw new RuntimeException("deflate compression not implemented yet");
             }
         }
 
         throw new RuntimeException("could not find the appropriated encoding");
+    }
+
+    private byte[] gzip(byte[] body) throws IOException {
+        InputStream is = new ByteArrayInputStream(body);
+        var os = new ByteArrayOutputStream();
+        GZIPOutputStream gzipOut = new GZIPOutputStream(os);
+        byte[] buf = new byte[body.length];
+
+        int bytesRead;
+        while((bytesRead = is.read(buf)) > -1) {
+            gzipOut.write(buf, 0, bytesRead);
+        }
+
+        gzipOut.close();
+        os.close();
+        return os.toByteArray();
     }
 }

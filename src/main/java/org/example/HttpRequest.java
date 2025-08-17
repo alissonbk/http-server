@@ -70,7 +70,7 @@ public class HttpRequest extends Http {
             }
             if (splitHeader[0].equals("Accept-Encoding")) {
                 try {
-                    final var encodings = splitHeader[1].split(";");
+                    final var encodings = splitHeader[1].split(",");
                     // FIXME: find a better way to define which encoding to use
                     this.acceptEncoding = HttpEncoding.valueOf(encodings[0]);
                 } catch (IllegalArgumentException e) {
