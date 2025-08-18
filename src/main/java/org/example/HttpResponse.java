@@ -21,7 +21,6 @@ import static org.example.Main.FILE_PATH_DIR;
 
 public class HttpResponse extends Http {
     private int statusCode;
-    private HttpConnection connection;
     private final HttpRequest request;
     private HttpEncoding contentEncoding;
 

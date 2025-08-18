@@ -1,5 +1,6 @@
 package org.example;
 
+import org.example.enums.HttpConnection;
 import org.example.exceptions.ConnectionTimeout;
 
 import java.io.IOException;
@@ -33,7 +34,11 @@ public class Main {
                         ((ThreadPoolExecutor) executor).getPoolSize(),
                         ((ThreadPoolExecutor) executor).getActiveCount());
                 executor.submit(() -> {
-                    handleNewConnection(clientSocket);
+                    try {
+                        handleNewConnection(clientSocket, clientSocket.getInputStream());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 });
             }
 
@@ -52,19 +57,28 @@ public class Main {
         }
     }
 
-    private static void handleNewConnection(Socket clientSocket) {
+    private static void handleNewConnection(Socket clientSocket, InputStream clientInputStream) {
         try {
             waitForConnectionContent(clientSocket);
             var httpRequest = readRequest(clientSocket.getInputStream());
             var httpResponse = new HttpResponse(httpRequest);
             var response = httpResponse.parseAll();
-            System.out.println("response: \n" + new String(response));
             clientSocket.getOutputStream().write(response);
             clientSocket.getOutputStream().flush();
-            clientSocket.getOutputStream().close();
-            clientSocket.close();
+            if (httpRequest.connection != null && httpRequest.connection.equals(HttpConnection.CLOSE)) {
+                clientSocket.getOutputStream().close();
+                clientSocket.close();
+                return;
+            }
+
+            // keep listening in the same connection
+            handleNewConnection(clientSocket, clientInputStream);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            try {
+                clientSocket.close();
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
         } catch (ConnectionTimeout e) {
             try {
                 var response = new HttpResponse(null).buildRequestTimeout();
@@ -81,7 +95,8 @@ public class Main {
 
     private static void waitForConnectionContent(Socket s) throws IOException {
         var startTime = Date.from(Instant.now());
-        while(s.getInputStream().available() <= 0 && Date.from(Instant.now().minusSeconds(EMPTY_CONNECTION_TIMEOUT_SECONDS)).before(startTime)) {
+        while(s.getInputStream().available() <= 0 &&
+                Date.from(Instant.now().minusSeconds(EMPTY_CONNECTION_TIMEOUT_SECONDS)).before(startTime)) {
             // wait for content or timeout
         }
         if (s.getInputStream().available() <= 0) {

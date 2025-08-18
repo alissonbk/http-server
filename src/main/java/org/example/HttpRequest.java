@@ -1,6 +1,7 @@
 package org.example;
 
 
+import org.example.enums.HttpConnection;
 import org.example.enums.HttpContentType;
 import org.example.enums.HttpEncoding;
 import org.example.enums.HttpMethod;
@@ -58,6 +59,9 @@ public class HttpRequest extends Http {
             }
             if (splitHeader[0].equals("Content-Length")) {
                 this.contentLength = Integer.parseInt(splitHeader[1]);
+            }
+            if (splitHeader[0].equals("Connection")) {
+                this.connection = HttpConnection.valueOf(splitHeader[1]);
             }
             if (splitHeader[0].equals("Content-Type")) {
                 try {

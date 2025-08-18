@@ -1,0 +1,1 @@
+- Add the Vary header, indicating that Accept-Encoding was used to comress the file (than things can be cached differently)

@@ -1,5 +1,6 @@
 package org.example;
 
+import org.example.enums.HttpConnection;
 import org.example.enums.HttpContentType;
 
 public abstract class Http {
@@ -7,6 +8,7 @@ public abstract class Http {
     protected String body;
     protected HttpContentType contentType;
     protected int contentLength;
+    protected HttpConnection connection;
 
 
     // parse content type to enum
