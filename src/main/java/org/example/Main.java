@@ -2,11 +2,13 @@ package org.example;
 
 import org.example.enums.HttpConnection;
 import org.example.exceptions.ConnectionTimeout;
+import org.example.exceptions.FailedToParse;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
@@ -34,11 +36,7 @@ public class Main {
                         ((ThreadPoolExecutor) executor).getPoolSize(),
                         ((ThreadPoolExecutor) executor).getActiveCount());
                 executor.submit(() -> {
-                    try {
-                        handleNewConnection(clientSocket, clientSocket.getInputStream());
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
+                    handleNewConnection(clientSocket);
                 });
             }
 
@@ -57,7 +55,7 @@ public class Main {
         }
     }
 
-    private static void handleNewConnection(Socket clientSocket, InputStream clientInputStream) {
+    private static void handleNewConnection(Socket clientSocket) {
         try {
             waitForConnectionContent(clientSocket);
             var httpRequest = readRequest(clientSocket.getInputStream());
@@ -65,16 +63,17 @@ public class Main {
             var response = httpResponse.parseAll();
             clientSocket.getOutputStream().write(response);
             clientSocket.getOutputStream().flush();
+            // keep-alive as default so only close if explicitly set
             if (httpRequest.connection != null && httpRequest.connection.equals(HttpConnection.CLOSE)) {
                 clientSocket.getOutputStream().close();
                 clientSocket.close();
                 return;
             }
-
             // keep listening in the same connection
-            handleNewConnection(clientSocket, clientInputStream);
+            handleNewConnection(clientSocket);
         } catch (IOException e) {
             try {
+                System.out.println("IOException: " + e.getMessage());
                 clientSocket.close();
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
@@ -89,24 +88,28 @@ public class Main {
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
+        } catch (Exception e) {
+            System.out.println("exception: " + e.getMessage());
+            handleNewConnection(clientSocket);
         }
 
     }
 
-    private static void waitForConnectionContent(Socket s) throws IOException {
+    private static void waitForConnectionContent(Socket socket) throws IOException {
         var startTime = Date.from(Instant.now());
-        while(s.getInputStream().available() <= 0 &&
+        while(socket.getInputStream().available() <= 0 &&
                 Date.from(Instant.now().minusSeconds(EMPTY_CONNECTION_TIMEOUT_SECONDS)).before(startTime)) {
             // wait for content or timeout
         }
-        if (s.getInputStream().available() <= 0) {
+        System.out.println(socket.getInputStream().available());
+        if (socket.getInputStream().available() <= 0) {
             throw new ConnectionTimeout(
                 "the client spent more than " + EMPTY_CONNECTION_TIMEOUT_SECONDS + " seconds without sending any content"
             );
         }
     }
 
-    private static HttpRequest readRequest(InputStream is) throws IOException {
+    private static HttpRequest readRequest(InputStream is) throws IOException, FailedToParse {
         byte[] buffer = new byte[is.available()];
         var ignore = is.read(buffer);
         var req = new HttpRequest();

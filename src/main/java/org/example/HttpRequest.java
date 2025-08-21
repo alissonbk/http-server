@@ -61,7 +61,7 @@ public class HttpRequest extends Http {
                 this.contentLength = Integer.parseInt(splitHeader[1]);
             }
             if (splitHeader[0].equals("Connection")) {
-                this.connection = HttpConnection.valueOf(splitHeader[1]);
+                this.connection = HttpConnection.valueOf(splitHeader[1].replaceAll("-", "_").toUpperCase());
             }
             if (splitHeader[0].equals("Content-Type")) {
                 try {
